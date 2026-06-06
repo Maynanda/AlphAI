@@ -1,13 +1,11 @@
 """
 Main Streamlit application entry point for Arlo — AlphaAI.
-Handles page routing, global styling, and database initialization.
+Handles page routing, global styling, and backend communication.
 """
 
 import streamlit as st
-from arlo.core.database import init_database
-from arlo.core.config import load_settings
-from arlo.services.email_service import EmailService
-from arlo.features.reminder_engine import ReminderEngine
+from arlo.ui.client import ArloAPIClient
+from arlo.ui.components.chat_modal import render_chat_modal
 
 # ── PAGE CONFIG ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -45,41 +43,13 @@ st.markdown("""
 
     /* Metric card override */
     [data-testid="stMetric"] {
-        background: rgba(30, 41, 59, 0.4);
-        border: 1px solid rgba(99, 102, 241, 0.2);
+        background: rgba(30, 41, 59, 0.03);
+        border: 1px solid rgba(99, 102, 241, 0.15);
         border-radius: 12px;
         padding: 1rem;
     }
-
-    /* Floating Arlo button */
-    .arlo-float-btn {
-        position: fixed;
-        bottom: 28px;
-        right: 28px;
-        z-index: 9999;
-        width: 58px;
-        height: 58px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #7C3AED, #2563EB);
-        color: white;
-        font-size: 1.4rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 20px rgba(124, 58, 237, 0.5);
-        cursor: pointer;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-        border: none;
-    }
-    .arlo-float-btn:hover {
-        transform: scale(1.1);
-        box-shadow: 0 6px 28px rgba(124, 58, 237, 0.7);
-    }
 </style>
 """, unsafe_allow_html=True)
-
-# ── DATABASE INIT ─────────────────────────────────────────────────────────────
-init_database()
 
 # ── SESSION STATE DEFAULTS ────────────────────────────────────────────────────
 if "active_page" not in st.session_state:
@@ -92,6 +62,8 @@ if "edit_activity_content" not in st.session_state:
     st.session_state.edit_activity_content = None
 if "create_project_open" not in st.session_state:
     st.session_state.create_project_open = False
+
+client = ArloAPIClient()
 
 # ── SIDEBAR NAVIGATION ────────────────────────────────────────────────────────
 with st.sidebar:
@@ -117,55 +89,63 @@ with st.sidebar:
             st.rerun()
 
     st.divider()
+    
+    # Global Chat toggle
+    show_chat = st.toggle("💬 Talk to Arlo", key="show_chat_toggle", value=False)
+    
+    st.divider()
     st.caption("All data stored locally in `./data/`")
     st.caption("Back up regularly — no cloud sync.")
-
-    # Initialize Email Service and Reminder Engine
-    settings = load_settings()
-    email_service = EmailService(
-        smtp_server=settings.get("smtp_server", ""),
-        smtp_port=settings.get("smtp_port", 587),
-        username=settings.get("smtp_username", ""),
-        password=settings.get("smtp_password", ""),
-        sender_email=settings.get("smtp_sender_email", "")
-    )
-    reminder_engine = ReminderEngine(email_service)
-    reminder_engine.start()
 
 # ── PAGE ROUTING ──────────────────────────────────────────────────────────────
 page = st.session_state.active_page
 
-if page == "Dashboard":
-    from arlo.ui.pages.dashboard import show
-    show()
+def render_active_page():
+    if page == "Dashboard":
+        from arlo.ui.pages.dashboard import show
+        show()
 
-elif page == "Project Detail":
-    from arlo.ui.pages.project_detail import show
-    show()
+    elif page == "Project Detail":
+        from arlo.ui.pages.project_detail import show
+        show()
 
-elif page == "Daily Flow":
-    import arlo.ui.pages.daily_flow as daily_flow
-    daily_flow.show()
+    elif page == "Daily Flow":
+        import arlo.ui.pages.daily_flow as daily_flow
+        daily_flow.show()
 
-elif page == "Communications":
-    import arlo.ui.pages.communications as communications
-    communications.show()
+    elif page == "Communications":
+        import arlo.ui.pages.communications as communications
+        communications.show()
 
-elif page == "Team Tracker":
-    import arlo.ui.pages.team_tracker as team_tracker
-    team_tracker.show()
+    elif page == "Team Tracker":
+        import arlo.ui.pages.team_tracker as team_tracker
+        team_tracker.show()
 
-elif page == "Reports":
-    import arlo.ui.pages.reports as reports
-    reports.show()
+    elif page == "Reports":
+        import arlo.ui.pages.reports as reports
+        reports.show()
 
-elif page == "Settings":
-    import arlo.ui.pages.settings as settings_page
-    settings_page.show()
+    elif page == "Settings":
+        import arlo.ui.pages.settings as settings_page
+        settings_page.show()
 
-# ── FLOATING ARLO CHAT BUTTON ─────────────────────────────────────────────────
-st.markdown("""
-<div>
-    <button class="arlo-float-btn" title="Chat with Arlo">💬</button>
-</div>
-""", unsafe_allow_html=True)
+# If chat toggle is ON, render side-by-side: left column has page, right column has Chat companion
+if show_chat:
+    col_page, col_chat = st.columns([7, 3])
+    with col_page:
+        render_active_page()
+    with col_chat:
+        st.markdown(
+            """
+            <style>
+                [data-testid="stSidebar"] {
+                    z-index: 100;
+                }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+        with st.container(border=True):
+            render_chat_modal()
+else:
+    render_active_page()

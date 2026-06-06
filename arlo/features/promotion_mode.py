@@ -9,8 +9,8 @@ from arlo.core.database import get_db_connection
 
 def is_promotion_mode_enabled() -> bool:
     """Checks if Promotion Mode is toggled ON in global settings."""
-    # Placeholder for configuration check
-    return False
+    from arlo.core.config import is_promotion_mode
+    return is_promotion_mode()
 
 
 def check_and_update_streak(date_str: str) -> Dict[str, int]:

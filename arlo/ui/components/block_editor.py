@@ -1,13 +1,12 @@
 import streamlit as st
-from arlo.core.models import BlockType
-from arlo.features.activity_capture import update_block
+from arlo.ui.client import ArloAPIClient
 from arlo.ui.components.history_viewer import render_history_viewer
 
 def render_block_editor(project_id: int, block_type: str, current_content: str):
     """
     Renders inline edit interface for a leadership block.
     """
-    block_type_val = BlockType(block_type)
+    client = ArloAPIClient()
     state_key = f"edit_mode_{project_id}_{block_type}"
     
     if state_key not in st.session_state:
@@ -30,10 +29,13 @@ def render_block_editor(project_id: int, block_type: str, current_content: str):
         col1, col2, _ = st.columns([1, 1, 4])
         with col1:
             if st.button("Save", key=f"save_block_{project_id}_{block_type}", type="primary"):
-                update_block(project_id, block_type_val, new_text)
-                st.session_state[state_key] = False
-                st.toast(f"Successfully updated {title_label}!")
-                st.rerun()
+                try:
+                    client.update_block(project_id, block_type, new_text)
+                    st.session_state[state_key] = False
+                    st.toast(f"Successfully updated {title_label}!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Failed to update block: {e}")
         with col2:
             if st.button("Cancel", key=f"cancel_block_{project_id}_{block_type}"):
                 st.session_state[state_key] = False
@@ -52,5 +54,4 @@ def render_block_editor(project_id: int, block_type: str, current_content: str):
                 st.rerun()
         with col2:
             # Renders history toggle/expander directly beneath
-            render_history_viewer(project_id, block_type_val)
-
+            render_history_viewer(project_id, block_type)

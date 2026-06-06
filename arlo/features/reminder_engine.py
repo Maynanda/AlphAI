@@ -96,7 +96,7 @@ class ReminderEngine:
         self.in_app_queue.append({
             "message": message,
             "deep_link": deep_link,
-            "timestamp": datetime.datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat()
         })
 
     def fetch_in_app_notifications(self) -> List[Dict[str, Any]]:

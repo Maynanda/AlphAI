@@ -6,7 +6,7 @@ import logging
 from typing import List, Dict, Any, Optional
 import chromadb
 from chromadb.config import Settings
-from arlo.core.config import CHROMA_DB_PATH
+from arlo.core.config import get_chroma_db_path
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +18,9 @@ class RAGService:
     def initialize(self) -> None:
         """Initializes the Chroma persistent client."""
         try:
-            logger.info(f"Initializing ChromaDB client at: {CHROMA_DB_PATH}")
-            self.client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
+            chroma_path = get_chroma_db_path()
+            logger.info(f"Initializing ChromaDB client at: {chroma_path}")
+            self.client = chromadb.PersistentClient(path=chroma_path)
             logger.info("ChromaDB initialized.")
         except Exception as e:
             logger.error(f"Failed to initialize ChromaDB: {e}")

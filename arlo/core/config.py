@@ -29,8 +29,11 @@ def get_default_settings() -> Dict[str, Any]:
         "smtp_password": "",
         "smtp_sender_email": "",
         "promotion_mode": False,
-        "reminders_enabled": True
+        "reminders_enabled": True,
+        "use_gemini_api": False,
+        "gemini_api_key": os.environ.get("GEMINI_API_KEY", "")
     }
+
 
 def load_settings() -> Dict[str, Any]:
     """Loads settings from settings.json or returns default settings."""
@@ -87,4 +90,11 @@ def is_promotion_mode() -> bool:
 
 def is_reminders_enabled() -> bool:
     return load_settings()["reminders_enabled"]
+
+def is_use_gemini_api() -> bool:
+    return load_settings().get("use_gemini_api", False)
+
+def get_gemini_api_key() -> str:
+    return load_settings().get("gemini_api_key", "")
+
 

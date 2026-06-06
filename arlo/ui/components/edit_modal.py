@@ -1,11 +1,12 @@
 import streamlit as st
-from arlo.features.activity_capture import edit_activity
+from arlo.ui.client import ArloAPIClient
 
 def render_activity_edit_form(activity_id: int, current_content: str):
     """
     Renders an inline edit form for a specific activity.
-    Saves updates via edit_activity.
+    Saves updates via edit_activity API.
     """
+    client = ArloAPIClient()
     st.markdown("##### ✏️ Edit Activity Log")
     
     new_content = st.text_area(
@@ -19,11 +20,14 @@ def render_activity_edit_form(activity_id: int, current_content: str):
     with col1:
         if st.button("Update Log", key=f"update_act_btn_{activity_id}", type="primary"):
             if new_content.strip():
-                edit_activity(activity_id, new_content.strip())
-                st.session_state.edit_activity_id = None
-                st.session_state.edit_activity_content = None
-                st.toast("Activity updated successfully!")
-                st.rerun()
+                try:
+                    client.edit_activity(activity_id, new_content.strip())
+                    st.session_state.edit_activity_id = None
+                    st.session_state.edit_activity_content = None
+                    st.toast("Activity updated successfully!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Failed to update activity: {e}")
             else:
                 st.error("Content cannot be empty.")
     with col2:
@@ -31,4 +35,3 @@ def render_activity_edit_form(activity_id: int, current_content: str):
             st.session_state.edit_activity_id = None
             st.session_state.edit_activity_content = None
             st.rerun()
-

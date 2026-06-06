@@ -108,3 +108,123 @@ class LocalLLM:
             cleaned = cleaned[:-3]
         cleaned = cleaned.strip()
         return json.loads(cleaned)
+
+
+class GeminiLLM:
+    """
+    Wrapper for Google Gemini API.
+    Uses httpx to avoid external heavy package requirements.
+    """
+    def __init__(self, api_key: str, model_name: str = "gemini-1.5-flash"):
+        self.api_key = api_key
+        self.model_name = model_name
+        self.is_loaded = False
+
+    def load_model(self) -> bool:
+        """Verifies if key exists to load the model."""
+        if self.api_key and self.api_key.strip():
+            self.is_loaded = True
+            logger.info(f"Gemini API model configured with model: {self.model_name}")
+            return True
+        self.is_loaded = False
+        logger.warning("No Gemini API key supplied.")
+        return False
+
+    def generate(self, system: str, user: str, max_new_tokens: int = 1024) -> str:
+        """Generates text from Gemini API."""
+        if not self.is_loaded:
+            raise RuntimeError("Gemini LLM model is not configured (missing API key).")
+
+        import httpx
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model_name}:generateContent?key={self.api_key}"
+        payload = {
+            "systemInstruction": {
+                "parts": [{"text": system}]
+            },
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [{"text": user}]
+                }
+            ]
+        }
+
+        try:
+            with httpx.Client(timeout=30.0) as client:
+                response = client.post(url, json=payload)
+                response.raise_for_status()
+                res_json = response.json()
+                
+                candidates = res_json.get("candidates", [])
+                if not candidates:
+                    raise RuntimeError("Gemini API did not return any completion candidates.")
+                
+                parts = candidates[0].get("content", {}).get("parts", [])
+                if not parts:
+                    raise RuntimeError("Gemini API returned candidate with no text parts.")
+                
+                return parts[0].get("text", "").strip()
+        except Exception as e:
+            logger.error(f"Gemini generation call failed: {e}")
+            raise
+
+    def generate_json(self, system: str, user: str) -> Dict[str, Any]:
+        """Generates content and parses it as a JSON object, requesting structured JSON from Gemini."""
+        if not self.is_loaded:
+            raise RuntimeError("Gemini LLM model is not configured (missing API key).")
+
+        import httpx
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model_name}:generateContent?key={self.api_key}"
+        payload = {
+            "systemInstruction": {
+                "parts": [{"text": system}]
+            },
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [{"text": user}]
+                }
+            ],
+            "generationConfig": {
+                "responseMimeType": "application/json"
+            }
+        }
+
+        try:
+            with httpx.Client(timeout=30.0) as client:
+                response = client.post(url, json=payload)
+                response.raise_for_status()
+                res_json = response.json()
+                
+                candidates = res_json.get("candidates", [])
+                if not candidates:
+                    raise RuntimeError("Gemini API did not return any completion candidates.")
+                
+                parts = candidates[0].get("content", {}).get("parts", [])
+                if not parts:
+                    raise RuntimeError("Gemini API returned candidate with no text parts.")
+                
+                text = parts[0].get("text", "").strip()
+                return json.loads(text)
+        except Exception as e:
+            logger.warning(f"Structured Gemini JSON call failed: {e}. Falling back to normal parse.")
+            try:
+                # Fallback to normal text completion and parse locally
+                normal_text = self.generate(system, user)
+                return self._parse_json(normal_text)
+            except Exception as e_inner:
+                logger.error(f"Failed to parse text as JSON in fallback: {e_inner}")
+                raise
+
+    def _parse_json(self, text: str) -> Dict[str, Any]:
+        """Cleans and parses a JSON response string."""
+        cleaned = text.strip()
+        if cleaned.startswith("```json"):
+            cleaned = cleaned[7:]
+        if cleaned.startswith("```"):
+            cleaned = cleaned[3:]
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3]
+        cleaned = cleaned.strip()
+        return json.loads(cleaned)
+
