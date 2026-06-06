@@ -4,6 +4,7 @@ Uses APScheduler in a background thread.
 """
 
 import logging
+from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 from typing import List, Dict, Any
 
@@ -95,7 +96,7 @@ class ReminderEngine:
         self.in_app_queue.append({
             "message": message,
             "deep_link": deep_link,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.datetime.utcnow().isoformat()
         })
 
     def fetch_in_app_notifications(self) -> List[Dict[str, Any]]:

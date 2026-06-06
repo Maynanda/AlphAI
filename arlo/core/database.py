@@ -6,7 +6,7 @@ import sqlite3
 import os
 from contextlib import contextmanager
 from typing import Generator
-from arlo.core.config import SQLITE_DB_PATH
+from arlo.core.config import get_sqlite_db_path
 
 # Current schema version
 CURRENT_SCHEMA_VERSION = 1
@@ -18,11 +18,12 @@ def get_db_connection() -> Generator[sqlite3.Connection, None, None]:
     Context manager for database connections.
     Enforces foreign keys.
     """
-    db_dir = os.path.dirname(SQLITE_DB_PATH)
+    db_path = get_sqlite_db_path()
+    db_dir = os.path.dirname(db_path)
     if db_dir:
         os.makedirs(db_dir, exist_ok=True)
 
-    conn = sqlite3.connect(SQLITE_DB_PATH)
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON;")
     try:
