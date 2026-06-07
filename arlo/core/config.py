@@ -1,100 +1,85 @@
 """
 Configuration module for Arlo — AlphaAI.
-Handles paths, model settings, and SMTP credentials dynamically.
+Handles paths, model settings, and SMTP credentials dynamically via pydantic-settings.
 """
 
-import os
-import json
-from pathlib import Path
-from typing import Dict, Any
+from pydantic_settings import BaseSettings
+from typing import Optional
 
-# Base directories
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-DEFAULT_DATA_DIR = BASE_DIR / "data"
-DEFAULT_DATA_DIR.mkdir(parents=True, exist_ok=True)
+class Settings(BaseSettings):
+    # Active provider — change this to switch models, no code changes needed
+    llm_provider: str = "local_hf"       # local_hf | gemini | anthropic | openai_compat
 
-SETTINGS_FILE = DEFAULT_DATA_DIR / "settings.json"
+    # Local HuggingFace (Qwen3, Qwen2.5, Mistral, Llama 3, Phi-3, etc.)
+    llm_model_path: str = "./models/Qwen3-8B"
 
-def get_default_settings() -> Dict[str, Any]:
-    """Returns default settings dictionary."""
-    return {
-        "sqlite_db_path": str(DEFAULT_DATA_DIR / "arlo.db"),
-        "chroma_db_path": str(DEFAULT_DATA_DIR / "chroma"),
-        "upload_dir": str(DEFAULT_DATA_DIR / "uploads"),
-        "llm_model_path": "meta-llama/Llama-2-7b-chat-hf",
-        "embedding_model_name": "BAAI/bge-m3",
-        "smtp_server": "smtp.gmail.com",
-        "smtp_port": 587,
-        "smtp_username": "",
-        "smtp_password": "",
-        "smtp_sender_email": "",
-        "promotion_mode": False,
-        "reminders_enabled": True,
-        "use_gemini_api": False,
-        "gemini_api_key": os.environ.get("GEMINI_API_KEY", "")
-    }
+    # API-based providers (only the active provider's key is required)
+    llm_model_name: str = "gemini-3.1-flash"
+    llm_base_url: Optional[str] = None           # for openai_compat non-standard endpoints
+    gemini_api_key: Optional[str] = None
+    anthropic_api_key: Optional[str] = None
+    openai_api_key: Optional[str] = None         # also used for openai_compat
 
+    # Email
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_to: str = ""
 
-def load_settings() -> Dict[str, Any]:
-    """Loads settings from settings.json or returns default settings."""
-    defaults = get_default_settings()
-    if SETTINGS_FILE.exists():
-        try:
-            with open(SETTINGS_FILE, "r") as f:
-                saved = json.load(f)
-                # Merge saved settings with defaults to handle new fields
-                for k, v in saved.items():
-                    defaults[k] = v
-        except Exception:
-            pass
-    return defaults
+    # Data paths
+    db_path: str = "./data/arlo.db"
+    chroma_path: str = "./data/chroma"
+    uploads_path: str = "./data/uploads"
 
-def save_settings(settings: Dict[str, Any]) -> None:
-    """Saves settings to settings.json."""
-    with open(SETTINGS_FILE, "w") as f:
-        json.dump(settings, f, indent=4)
-    
-    # Ensure directories exist
-    Path(settings.get("upload_dir", str(DEFAULT_DATA_DIR / "uploads"))).mkdir(parents=True, exist_ok=True)
-    Path(settings.get("chroma_db_path", str(DEFAULT_DATA_DIR / "chroma"))).mkdir(parents=True, exist_ok=True)
-    Path(os.path.dirname(settings.get("sqlite_db_path", str(DEFAULT_DATA_DIR / "arlo.db")))).mkdir(parents=True, exist_ok=True)
+    # App Toggles
+    promotion_mode: bool = False
+    reminders_enabled: bool = True
 
-# Helper functions to access current settings
+    class Config:
+        env_file = ".env"
+        extra = "ignore"
+
+settings = Settings()
+
+# Backward compatibility functions
+def load_settings() -> dict:
+    return settings.model_dump()
+
+def save_settings(new_settings: dict) -> None:
+    # Dummy save for backward compatibility
+    pass
+
 def get_sqlite_db_path() -> str:
-    return load_settings()["sqlite_db_path"]
+    return settings.db_path
 
 def get_chroma_db_path() -> str:
-    return load_settings()["chroma_db_path"]
+    return settings.chroma_path
 
-def get_upload_dir() -> Path:
-    return Path(load_settings()["upload_dir"])
+def get_upload_dir() -> str:
+    return settings.uploads_path
 
 def get_llm_model_path() -> str:
-    return load_settings()["llm_model_path"]
+    return settings.llm_model_path
 
-def get_embedding_model_name() -> str:
-    return load_settings()["embedding_model_name"]
-
-def get_smtp_settings() -> Dict[str, Any]:
-    settings = load_settings()
+def get_smtp_settings() -> dict:
     return {
-        "server": settings["smtp_server"],
-        "port": settings["smtp_port"],
-        "username": settings["smtp_username"],
-        "password": settings["smtp_password"],
-        "sender": settings["smtp_sender_email"]
+        "server": settings.smtp_host,
+        "port": settings.smtp_port,
+        "username": settings.smtp_user,
+        "password": settings.smtp_password,
+        "sender": settings.smtp_user,
+        "to": settings.smtp_to
     }
 
 def is_promotion_mode() -> bool:
-    return load_settings()["promotion_mode"]
+    return settings.promotion_mode
 
 def is_reminders_enabled() -> bool:
-    return load_settings()["reminders_enabled"]
+    return settings.reminders_enabled
 
 def is_use_gemini_api() -> bool:
-    return load_settings().get("use_gemini_api", False)
+    return settings.llm_provider == "gemini"
 
 def get_gemini_api_key() -> str:
-    return load_settings().get("gemini_api_key", "")
-
-
+    return settings.gemini_api_key or ""
