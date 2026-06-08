@@ -3,3 +3,4 @@ INFO:     Waiting for application startup.
 INFO:arlo.api.main:Database initialized.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:59570 - "GET /openapi.json HTTP/1.1" 200 OK
